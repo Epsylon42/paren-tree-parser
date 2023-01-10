@@ -1,0 +1,19 @@
+{
+    "name": "paren-tree-parser",
+    "version": "1.0.0",
+    "description": "",
+    "main": "build/index.mjs",
+    "author": {
+        "name": "Epsylon",
+        "email": "eepsylon.3@gmail.com"
+    },
+    "license": "MIT",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "tsc",
+        "install": "npm run build"
+    },
+    "devDependencies": {
+        "typescript": "^4.9.4"
+    }
+}
