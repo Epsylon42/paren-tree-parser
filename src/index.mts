@@ -1,4 +1,4 @@
-import { Surround, OpeningBracket, ClosingBracket, Token, StringToken, SpaceToken, StringLiteralToken, AnyToken } from './types.mjs';
+import { Surround, OpeningBracket, ClosingBracket, Token, StringToken, SpaceToken, StringLiteralToken, AnyToken, Character } from './types.mjs';
 import * as escape from './escape.mjs';
 
 interface IncompleteToken<T = StringToken> {
@@ -109,14 +109,18 @@ export function traverse<T extends AnyToken, U>(
     });
 }
 
-export function stringify(tokens: Token[] | Token): string {
+export function stringify(tokens: Token[] | Token, mode: 'default' | 'expandLiterals' = 'default'): string {
     const stringifyOne = (token: Token) => {
         if (token.type == 'string' || token.type == 'space') {
             return token.data;
         } else if (token.type == 'tree') {
             return token.opening + stringify(token.inner) + token.closing;
         } else if (token.type == 'sliteral') {
-            return token.surround + escape.stringify(token.data) + token.surround;
+            if (mode == 'expandLiterals') {
+                return escape.stringify(token.data, true);
+            } else {
+                return token.surround + escape.stringify(token.data) + token.surround;
+            }
         } else {
             throw new Error('stringify: Unsupported token type');
         }

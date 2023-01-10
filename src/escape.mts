@@ -14,12 +14,12 @@ export function parse(data: string): Character[] {
     return characters;
 }
 
-export function stringify(chars: Character[]): string {
+export function stringify(chars: Character[], discardEscapes: boolean = false): string {
     return chars.map(ch => {
-        if (ch.type == 'regular') {
-            return ch.data;
-        } else {
+        if (ch.type == 'escaped' && !discardEscapes) {
             return '\\' + ch.data;
+        } else {
+            return ch.data;
         }
     })
     .join('');
