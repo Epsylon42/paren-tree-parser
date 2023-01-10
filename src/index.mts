@@ -9,7 +9,14 @@ interface IncompleteToken<T = StringToken> {
     inner: Token<T>[];
 }
 
-export function tokenize(data: string): Token<StringToken>[] {
+export function tokenize(input: string | StringToken, allowedBrackets?: OpeningBracket[]): Token<StringToken>[] {
+    let data: string;
+    if (typeof input == 'string') {
+        data = input;
+    } else {
+        data = input.data;
+    }
+
     const tokenStack: IncompleteToken[] = [];
     const currentToken = () => tokenStack[tokenStack.length - 1];
 
@@ -33,7 +40,7 @@ export function tokenize(data: string): Token<StringToken>[] {
     
     for (let i = 0; i < data.length; i++) {
         const c = data[i];
-        if (isOpening(c)) {
+        if (isOpening(c) && (!allowedBrackets || allowedBrackets.includes(c))) {
             addSimpleToken(i);
             tokenStack.push({
                 cursor: i + 1,
@@ -59,57 +66,67 @@ export function tokenize(data: string): Token<StringToken>[] {
 
     addSimpleToken(data.length);
 
-    const toplevelToken = tokenStack.pop() as IncompleteToken;
+    while (tokenStack.length > 1) {
+        const top = tokenStack.pop() as IncompleteToken;
+        const current = currentToken();
+        current.inner.push({
+            type: 'string',
+            data: top.opening,
+        })
+        current.inner.push(...top.inner)
 
+        current.inner = current.inner.reduce((acc: Token<StringToken>[], value: Token<StringToken>) => {
+            const last = acc[acc.length - 1];
+            if (value.type == 'string' && last?.type == 'string') {
+                last.data += value.data;
+            } else {
+                acc.push(value);
+            }
+
+            return acc;
+        }, []);
+    }
+
+    const toplevelToken = tokenStack.pop() as IncompleteToken;
     return toplevelToken.inner;
 }
 
-export function separateStringLiterals<T extends AnyToken>(tokens: Token<T>[]): Token<T | StringToken | StringLiteralToken>[] {
-    return tokens.flatMap((token): Token<T | StringToken | StringLiteralToken>[] => {
+export function traverse<T extends AnyToken, U>(
+    input: Token<T>[],
+    transformer: (token: StringToken) => Token<T | U>[]
+): Token<T | U>[] {
+    return input.flatMap((token): Token<T | U>[] => {
         if (token.type == 'tree') {
             return [{
                 ...token,
-                inner: separateStringLiterals(token.inner),
+                inner: traverse(token.inner, transformer),
             }]
         } else if (token.type == 'string') {
-            return escape.extractLiteralsFromToken(token);
+            return transformer(token);
         } else {
             return [token];
         }
     });
 }
 
-export function separateSpaces<T extends AnyToken>(tokens: Token<T>[]): Token<T | StringToken | SpaceToken>[] {
-    return tokens.flatMap((token): Token<T | StringToken | SpaceToken>[] => {
-        if (token.type == 'tree') {
-            return [{
-                ...token,
-                inner: separateSpaces(token.inner),
-            }];
-        } else if (token.type == 'string') {
-            return token.data.split(/(?<=\s)(?=[^\s])|(?<=[^\s])(?=\s)/)
-                .map(s => ({
-                    type: s[0].match(/\s/) ? 'space' : 'string',
-                    data: s,
-                }));
+export function stringify(tokens: Token[] | Token): string {
+    const stringifyOne = (token: Token) => {
+        if (token.type == 'string' || token.type == 'space') {
+            return token.data;
+        } else if (token.type == 'tree') {
+            return token.opening + stringify(token.inner) + token.closing;
+        } else if (token.type == 'sliteral') {
+            return token.surround + escape.stringify(token.data) + token.surround;
         } else {
-            return [token];
+            throw new Error('stringify: Unsupported token type');
         }
-    })
-}
+    }
 
-export function stringify(tokens: Token[]): string {
-    return tokens
-        .map(token => {
-            if (token.type == 'string' || token.type == 'space') {
-                return token.data;
-            } else if (token.type == 'tree') {
-                return token.opening + stringify(token.inner) + token.closing;
-            } else if (token.type == 'sliteral') {
-                return token.surround + escape.stringify(token.data) + token.surround;
-            }
-        })
-        .join('');
+    if (tokens instanceof Array) {
+        return tokens.map(stringifyOne).join('');
+    } else {
+        return stringifyOne(tokens);
+    }
 }
 
 function isOpening(bracket: string): bracket is OpeningBracket {
@@ -140,4 +157,39 @@ function opening(bracket: ClosingBracket): OpeningBracket {
         case '}':
             return '{';
     }
+}
+
+
+export class TokenizerChain<T extends AnyToken> {
+    constructor(private data: Token<T>[]) {}
+
+    public static new(data: string): TokenizerChain<StringToken> {
+        return new TokenizerChain([{
+            type: 'string',
+            data,
+        }]);
+    }
+
+    public traverse<U extends AnyToken>(
+        transformer: (token: StringToken) => Token<T | U>[]
+    ): TokenizerChain<T | U> {
+        return new TokenizerChain(traverse(this.data, transformer));
+    }
+
+    public tokenize(...allowedBrackets: OpeningBracket[]): TokenizerChain<T | StringToken> {
+        return this.traverse(x => tokenize(x, allowedBrackets.length == 0 ? undefined : allowedBrackets));
+    }
+
+    public get(): Token<T>[] {
+        return this.data;
+    }
+}
+
+export { extractLiteralsFromToken as separateStringLiterals } from './escape.mjs';
+export function separateSpaces(token: StringToken): (StringToken | SpaceToken)[] {
+    return token.data.split(/(?<=\s)(?=[^\s])|(?<=[^\s])(?=\s)/)
+        .map(s => ({
+            type: s[0].match(/\s/) ? 'space' : 'string',
+            data: s,
+        } as StringToken | SpaceToken));
 }
