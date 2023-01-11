@@ -7,6 +7,8 @@ interface IncompleteToken<T = StringToken> {
     opening: OpeningBracket | '';
     closing?: ClosingBracket;
     inner: Token<T>[];
+    outerStart: number;
+    innerStart: number;
 }
 
 export function tokenize(input: string | StringToken, allowedBrackets?: OpeningBracket[]): Token<StringToken>[] {
@@ -24,6 +26,8 @@ export function tokenize(input: string | StringToken, allowedBrackets?: OpeningB
         inner: [],
         opening: '',
         cursor: 0,
+        outerStart: 0,
+        innerStart: 0,
     });
 
     const addSimpleToken = (i: number) => {
@@ -45,7 +49,9 @@ export function tokenize(input: string | StringToken, allowedBrackets?: OpeningB
             tokenStack.push({
                 cursor: i + 1,
                 opening: c,
-                inner: []
+                inner: [],
+                outerStart: i,
+                innerStart: i + 1,
             });
         } else if (isClosing(c) && currentToken().opening == opening(c)) {
             addSimpleToken(i);
@@ -59,6 +65,14 @@ export function tokenize(input: string | StringToken, allowedBrackets?: OpeningB
                 closing: c,
                 surround: (token.opening + c) as Surround,
                 inner: token.inner,
+                outerSpan: {
+                    start: token.outerStart,
+                    end: i + 1,
+                },
+                innerSpan: {
+                    start: token.innerStart,
+                    end: i
+                }
             });
             currentToken().cursor = token.cursor;
         }

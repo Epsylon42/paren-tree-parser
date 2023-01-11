@@ -3,6 +3,11 @@ export type ClosingBracket = ')' | ']' | '}';
 export type Surround = '()' | '[]' | '{}';
 export type Quote = '\'' | '"';
 
+export interface Span {
+    start: number;
+    end: number;
+}
+
 export interface StringToken {
     type: 'string';
     data: string;
@@ -27,6 +32,8 @@ export interface TreeToken<T = AnyToken> {
     opening: OpeningBracket;
     closing: ClosingBracket;
     inner: Token<T>[];
+    outerSpan: Span;
+    innerSpan: Span;
 }
 
 export type Token<T = AnyToken> = T | TreeToken<T>;
