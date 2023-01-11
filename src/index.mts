@@ -206,6 +206,7 @@ export class TokenizerChain<T extends AnyToken> {
 export { extractLiteralsFromToken as separateStringLiterals } from './escape.mjs';
 export function separateSpaces(token: StringToken): (StringToken | SpaceToken)[] {
     return token.data.split(/(?<=\s)(?=[^\s])|(?<=[^\s])(?=\s)/)
+        .filter(s => s.length != 0)
         .map(s => ({
             type: s[0].match(/\s/) ? 'space' : 'string',
             data: s,
