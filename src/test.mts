@@ -1,9 +1,10 @@
-import { tokenize, stringify, TokenizerChain } from './index.mjs';
+import { tokenize, stringify, TokenizerChain, separateStringLiterals } from './index.mjs';
 
 function check(data: string) {
     const tokens = tokenize(data);
     console.log(data + '\n');
     console.log(JSON.stringify(tokens, null, '  '));
+    console.log(stringify(tokens));
     console.log('\n----\n');
 
     if (stringify(tokens) != data) {
@@ -15,9 +16,11 @@ function checkTwoPass(data: string) {
     const tokens = TokenizerChain.new(data)
         .tokenize('[')
         .tokenize()
+        .traverse(separateStringLiterals)
         .get();
     console.log(data + '\n');
     console.log(JSON.stringify(tokens, null, '  '));
+    console.log(stringify(tokens));
     console.log('\n----\n');
 
     if (stringify(tokens) != data) {
@@ -32,6 +35,8 @@ const examples = [
     '[color=(]',
     'a ( [color=abc]',
     'a ( [color=)abc]',
+    'abc="def"',
+    'abc="d\\"ef"',
 ];
 
 examples.forEach(check);

@@ -6,6 +6,7 @@ export function parse(data: string): Character[] {
     for (let i = 0; i < data.length; i++) {
         if (data[i] == '\\' && data[i + 1] != undefined) {
             characters.push(Character.escaped(data[i + 1]));
+            i += 1;
         } else {
             characters.push(Character.regular(data[i]));
         }
